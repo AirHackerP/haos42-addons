@@ -1,6 +1,6 @@
 name: "RGB Status LED"
 description: "WS281X LED status indicator showing system health - Green (OK), Amber (Updates), Red (Zigbee issues)"
-version: "1.0.0"
+version: "1.0.1"
 slug: "rgb_status_led"
 url: "https://github.com/AirHackerP/haos42-addons/tree/main/rgb_status_led"
 arch:
