@@ -23,9 +23,9 @@ auth_api: true
 
 # Configuration options
 options:
-  gpio_pin: 10
+  gpio_pin: 18
   led_count: 8
-  use_spi: true
+  use_spi: false
   brightness: 50
   refresh_interval: 30
   check_zigbee: true

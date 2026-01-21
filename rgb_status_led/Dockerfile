@@ -16,9 +16,9 @@ RUN apk add --no-cache \
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Install rpi_ws281x from source for better compatibility
+# Install rpi_ws281x from latest GitHub source (Pi 4 Rev 1.4+ support)
 RUN pip3 install --no-cache-dir \
-    rpi_ws281x \
+    git+https://github.com/rpi-ws281x/rpi-ws281x-python.git@master \
     requests
 
 # Copy application files

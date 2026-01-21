@@ -1,8 +1,8 @@
 """
 WS281X LED Controller for RGB Status Indicator
 
-Controls addressable RGB LEDs connected to GPIO10 (SPI MOSI) on Raspberry Pi.
-Uses SPI method for reliable Pi 4 compatibility (avoids PWM hardware detection issues).
+Controls addressable RGB LEDs connected to GPIO18 (PWM0) on Raspberry Pi.
+Supports both PWM method (GPIO18/12/13) and SPI method (GPIO10).
 """
 
 import logging
@@ -39,19 +39,19 @@ class LEDController:
 
     def __init__(
         self,
-        gpio_pin: int = 10,
+        gpio_pin: int = 18,
         led_count: int = 8,
         brightness: int = 50,
-        use_spi: bool = True
+        use_spi: bool = False
     ):
         """
         Initialize LED controller.
 
         Args:
-            gpio_pin: GPIO pin number (default 10 for SPI MOSI)
+            gpio_pin: GPIO pin number (default 18 for PWM0)
             led_count: Number of LEDs in strip
             brightness: LED brightness (0-100)
-            use_spi: Use SPI method (True) or PWM method (False)
+            use_spi: Use SPI method (requires GPIO10) or PWM method (GPIO18)
         """
         self.gpio_pin = gpio_pin
         self.led_count = led_count
@@ -89,7 +89,7 @@ class LEDController:
                     strip_type=ws.WS2811_STRIP_GRB
                 )
             else:
-                # PWM method - may have issues on Pi 4 Rev 1.4+
+                # PWM method - uses GPIO18/12/13
                 _LOGGER.info(f"Initializing LED strip using PWM method on GPIO{self.gpio_pin}")
                 self.strip = PixelStrip(
                     self.led_count,
@@ -98,7 +98,8 @@ class LEDController:
                     LED_DMA,
                     LED_INVERT,
                     self.brightness,
-                    LED_CHANNEL
+                    LED_CHANNEL,
+                    strip_type=ws.WS2811_STRIP_GRB
                 )
 
             self.strip.begin()

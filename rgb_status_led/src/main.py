@@ -41,9 +41,9 @@ def load_config() -> dict:
     # Default configuration
     _LOGGER.warning("No options.json found, using defaults")
     return {
-        "gpio_pin": 10,
+        "gpio_pin": 18,
         "led_count": 8,
-        "use_spi": True,
+        "use_spi": False,
         "brightness": 50,
         "refresh_interval": 30,
         "check_zigbee": True,
