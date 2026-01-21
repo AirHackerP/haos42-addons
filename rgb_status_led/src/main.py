@@ -41,8 +41,9 @@ def load_config() -> dict:
     # Default configuration
     _LOGGER.warning("No options.json found, using defaults")
     return {
-        "gpio_pin": 18,
+        "gpio_pin": 10,
         "led_count": 8,
+        "use_spi": True,
         "brightness": 50,
         "refresh_interval": 30,
         "check_zigbee": True,
@@ -76,6 +77,7 @@ def main():
     _LOGGER.info(f"Configuration loaded:")
     _LOGGER.info(f"  GPIO Pin: {config['gpio_pin']}")
     _LOGGER.info(f"  LED Count: {config['led_count']}")
+    _LOGGER.info(f"  Use SPI: {config.get('use_spi', True)}")
     _LOGGER.info(f"  Brightness: {config['brightness']}%")
     _LOGGER.info(f"  Refresh Interval: {config['refresh_interval']}s")
     _LOGGER.info(f"  Check Zigbee: {config['check_zigbee']}")
@@ -85,7 +87,8 @@ def main():
     led_controller = LEDController(
         gpio_pin=config["gpio_pin"],
         led_count=config["led_count"],
-        brightness=config["brightness"]
+        brightness=config["brightness"],
+        use_spi=config.get("use_spi", True)
     )
 
     if not led_controller.initialize():

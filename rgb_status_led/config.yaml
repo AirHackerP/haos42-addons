@@ -17,13 +17,15 @@ full_access: true
 
 # Home Assistant integration
 hassio_api: true
+hassio_role: admin
 homeassistant_api: true
 auth_api: true
 
 # Configuration options
 options:
-  gpio_pin: 18
+  gpio_pin: 10
   led_count: 8
+  use_spi: true
   brightness: 50
   refresh_interval: 30
   check_zigbee: true
@@ -36,6 +38,7 @@ options:
 schema:
   gpio_pin: int
   led_count: int
+  use_spi: bool
   brightness: int(1,100)
   refresh_interval: int(10,300)
   check_zigbee: bool

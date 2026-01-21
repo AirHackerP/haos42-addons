@@ -187,6 +187,9 @@ class HAMonitor:
         """
         Check for unavailable Zigbee devices.
 
+        Only checks cover entities (blinds) to avoid false positives from
+        button, number, and other auxiliary entities.
+
         Returns:
             List of unavailable device entity IDs
         """
@@ -208,6 +211,11 @@ class HAMonitor:
         for state in states:
             entity_id = state.get("entity_id", "")
             entity_state = state.get("state", "")
+
+            # Only check cover entities (the actual blinds)
+            # Skip buttons, numbers, sensors, and other auxiliary entities
+            if not entity_id.startswith("cover."):
+                continue
 
             # Check if this is a Zigbee device
             if self._matches_zigbee_pattern(entity_id):

@@ -1,15 +1,15 @@
 """
 WS281X LED Controller for RGB Status Indicator
 
-Controls addressable RGB LEDs connected to GPIO18 on Raspberry Pi.
-Uses the rpi_ws281x library for reliable timing via PWM/DMA.
+Controls addressable RGB LEDs connected to GPIO10 (SPI MOSI) on Raspberry Pi.
+Uses SPI method for reliable Pi 4 compatibility (avoids PWM hardware detection issues).
 """
 
 import logging
 from typing import Tuple
 
 try:
-    from rpi_ws281x import PixelStrip, Color
+    from rpi_ws281x import PixelStrip, Color, ws
     HAS_WS281X = True
 except ImportError:
     HAS_WS281X = False
@@ -17,11 +17,11 @@ except ImportError:
 
 _LOGGER = logging.getLogger(__name__)
 
-# LED strip configuration
+# LED strip configuration for SPI method
 LED_FREQ_HZ = 800000      # LED signal frequency in hertz
 LED_DMA = 10              # DMA channel to use for generating signal
 LED_INVERT = False        # True to invert the signal
-LED_CHANNEL = 0           # PWM channel (0 for GPIO18, 1 for GPIO13)
+LED_CHANNEL = 0           # SPI channel (0 for GPIO10 MOSI)
 
 # Status colors (RGB format - converted to GRB internally)
 class StatusColor:
@@ -39,21 +39,24 @@ class LEDController:
 
     def __init__(
         self,
-        gpio_pin: int = 18,
+        gpio_pin: int = 10,
         led_count: int = 8,
-        brightness: int = 50
+        brightness: int = 50,
+        use_spi: bool = True
     ):
         """
         Initialize LED controller.
 
         Args:
-            gpio_pin: GPIO pin number (default 18 for PWM0)
+            gpio_pin: GPIO pin number (default 10 for SPI MOSI)
             led_count: Number of LEDs in strip
-            brightness: LED brightness (0-255)
+            brightness: LED brightness (0-100)
+            use_spi: Use SPI method (True) or PWM method (False)
         """
         self.gpio_pin = gpio_pin
         self.led_count = led_count
         self.brightness = min(255, max(0, int(brightness * 2.55)))  # Convert 0-100 to 0-255
+        self.use_spi = use_spi
         self.strip = None
         self._current_color = StatusColor.OFF
         self._initialized = False
@@ -71,19 +74,38 @@ class LEDController:
             return True
 
         try:
-            self.strip = PixelStrip(
-                self.led_count,
-                self.gpio_pin,
-                LED_FREQ_HZ,
-                LED_DMA,
-                LED_INVERT,
-                self.brightness,
-                LED_CHANNEL
-            )
+            if self.use_spi:
+                # SPI method - more reliable on Pi 4, uses GPIO10 (SPI0 MOSI)
+                # strip_type determines color order (GRB for most WS2812B)
+                _LOGGER.info(f"Initializing LED strip using SPI method on GPIO{self.gpio_pin}")
+                self.strip = PixelStrip(
+                    self.led_count,
+                    self.gpio_pin,
+                    LED_FREQ_HZ,
+                    LED_DMA,
+                    LED_INVERT,
+                    self.brightness,
+                    LED_CHANNEL,
+                    strip_type=ws.WS2811_STRIP_GRB
+                )
+            else:
+                # PWM method - may have issues on Pi 4 Rev 1.4+
+                _LOGGER.info(f"Initializing LED strip using PWM method on GPIO{self.gpio_pin}")
+                self.strip = PixelStrip(
+                    self.led_count,
+                    self.gpio_pin,
+                    LED_FREQ_HZ,
+                    LED_DMA,
+                    LED_INVERT,
+                    self.brightness,
+                    LED_CHANNEL
+                )
+
             self.strip.begin()
             self._initialized = True
             _LOGGER.info(
-                f"LED strip initialized: {self.led_count} LEDs on GPIO{self.gpio_pin}"
+                f"LED strip initialized: {self.led_count} LEDs on GPIO{self.gpio_pin} "
+                f"({'SPI' if self.use_spi else 'PWM'} method)"
             )
             return True
         except Exception as e:
