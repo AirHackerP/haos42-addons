@@ -1,0 +1,56 @@
+name: "RGB Status LED"
+description: "WS281X LED status indicator showing system health - Green (OK), Amber (Updates), Red (Zigbee issues)"
+version: "1.0.0"
+slug: "rgb_status_led"
+url: "https://github.com/paulberg/haos42-addons/tree/main/rgb_status_led"
+arch:
+  - aarch64
+  - armv7
+startup: services
+boot: auto
+init: false
+
+# Hardware access - required for WS281X GPIO/PWM control
+privileged:
+  - SYS_RAWIO
+full_access: true
+
+# Home Assistant integration
+hassio_api: true
+homeassistant_api: true
+auth_api: true
+
+# Configuration options
+options:
+  gpio_pin: 18
+  led_count: 8
+  brightness: 50
+  refresh_interval: 30
+  check_zigbee: true
+  check_updates: true
+  zigbee_entity_patterns:
+    - "lumi"
+    - "zha"
+    - "cover.*acn002"
+
+schema:
+  gpio_pin: int
+  led_count: int
+  brightness: int(1,100)
+  refresh_interval: int(10,300)
+  check_zigbee: bool
+  check_updates: bool
+  zigbee_entity_patterns:
+    - str
+
+# Map devices for GPIO access
+map:
+  - share:rw
+
+devices:
+  - /dev/mem
+  - /dev/gpiomem
+  - /dev/spidev0.0
+  - /dev/spidev0.1
+
+image: "ghcr.io/paulberg/haos42-addons/{arch}-rgb-status-led"
