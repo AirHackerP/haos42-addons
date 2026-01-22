@@ -1,0 +1,16 @@
+--- a/rpihw.c
++++ b/rpihw.c
+@@ -189,6 +189,13 @@
+
+ rpi_hw_t *rpi_hw_detect(void)
+ {
++    /* Docker container workaround: Force Pi 4 detection
++     * Container cannot access /proc/device-tree for hardware detection
++     * Search for any Pi 4 entry (hwver & 0xFF0 == 0x3110) and return it
++     */
++    for (unsigned i = 0; rpi_hw[i].hwver != 0; i++) {
++        if ((rpi_hw[i].hwver & 0x00FF0) == 0x03110) return (rpi_hw_t *)&rpi_hw[i];
++    }
+     const rpi_hw_t *rpi_hw_iter;
+     uint32_t rev;
+     unsigned i;

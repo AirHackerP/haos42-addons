@@ -19,14 +19,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
+# Copy patch file first
+COPY force_pi4.patch /tmp/
+
 # Clone rpi-ws281x-python with submodules (includes latest native library)
-# Cache bust: 2026-01-22-2010
+# Cache bust: 2026-01-22-2230
 RUN git clone --depth 1 --recurse-submodules https://github.com/rpi-ws281x/rpi-ws281x-python.git /tmp/rpi-ws281x-python
 
 # Build and install from source (setup.py is in library/ subdirectory)
 WORKDIR /tmp/rpi-ws281x-python/library
-RUN git submodule update --init --recursive && \
-    pip3 install --no-cache-dir --no-binary :all: .
+RUN git submodule update --init --recursive
+
+# Apply patch to force Pi 4 hardware detection (bypasses /proc/device-tree access in Docker)
+RUN cd lib && patch -p1 < /tmp/force_pi4.patch && cd ..
+
+RUN pip3 install --no-cache-dir --no-binary :all: .
 
 # Install other dependencies
 RUN pip3 install --no-cache-dir requests

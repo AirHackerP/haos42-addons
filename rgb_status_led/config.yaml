@@ -1,6 +1,6 @@
 name: "RGB LED Controller"
 description: "WS281X RGB LED controller service - Control LEDs via REST API from HA automations"
-version: "2.0.2"
+version: "2.1.0"
 slug: "rgb_status_led"
 url: "https://github.com/AirHackerP/haos42-addons/tree/main/rgb_status_led"
 arch:
@@ -16,6 +16,7 @@ privileged:
 full_access: true
 apparmor: false
 host_pid: true
+host_network: true
 
 # Network port for HTTP API
 ports:
