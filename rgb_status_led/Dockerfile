@@ -15,26 +15,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake \
     && rm -rf /var/lib/apt/lists/*
 
-# Clone and build rpi_ws281x native library from source
-RUN cd /tmp && \
-    git clone https://github.com/jgarff/rpi_ws281x.git && \
-    cd rpi_ws281x && \
-    scons && \
-    mkdir build && \
-    cd build && \
-    cmake -D BUILD_SHARED=ON -D BUILD_TEST=ON .. && \
-    make && \
-    make install && \
-    ldconfig
-
 # Create virtual environment
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Install Python bindings (uses the native library we just built)
-RUN pip3 install --no-cache-dir \
-    rpi_ws281x \
-    requests
+# Clone rpi-ws281x-python with submodules (includes latest native library)
+# Force fresh clone to ensure latest code with Pi 4 Rev 1.4 support
+RUN cd /tmp && \
+    git clone --depth 1 --recurse-submodules https://github.com/rpi-ws281x/rpi-ws281x-python.git && \
+    cd rpi-ws281x-python && \
+    git submodule update --init --recursive && \
+    pip3 install --no-cache-dir --no-binary :all: .
+
+# Install other dependencies
+RUN pip3 install --no-cache-dir requests
 
 # Copy application files
 COPY src/ /app/
