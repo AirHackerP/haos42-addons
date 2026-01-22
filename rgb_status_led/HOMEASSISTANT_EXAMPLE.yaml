@@ -1,0 +1,114 @@
+# Home Assistant Configuration Example
+# Add these to your configuration.yaml
+
+# REST Command to control RGB LED
+rest_command:
+  set_rgb_led:
+    url: "http://192.168.1.99:8099/set_color?color={{ color }}"
+    method: GET
+
+# Example Automations
+
+# Set LED to GREEN when all systems OK
+automation:
+  - alias: "RGB LED - All Systems OK"
+    trigger:
+      - platform: state
+        entity_id:
+          - binary_sensor.zigbee_connectivity
+        to: "on"
+      - platform: state
+        entity_id:
+          - binary_sensor.updates_available
+        to: "off"
+    condition:
+      - condition: state
+        entity_id: binary_sensor.zigbee_connectivity
+        state: "on"
+      - condition: state
+        entity_id: binary_sensor.updates_available
+        state: "off"
+    action:
+      - service: rest_command.set_rgb_led
+        data:
+          color: "green"
+
+  # Set LED to AMBER when updates available
+  - alias: "RGB LED - Updates Available"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.updates_available
+        to: "on"
+    condition:
+      - condition: state
+        entity_id: binary_sensor.zigbee_connectivity
+        state: "on"
+    action:
+      - service: rest_command.set_rgb_led
+        data:
+          color: "amber"
+
+  # Set LED to RED when Zigbee issues detected
+  - alias: "RGB LED - Zigbee Issues"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.zigbee_connectivity
+        to: "off"
+    action:
+      - service: rest_command.set_rgb_led
+        data:
+          color: "red"
+
+# Helper: Zigbee Connectivity Binary Sensor
+# Checks if any Zigbee cover devices are unavailable
+template:
+  - binary_sensor:
+      - name: "Zigbee Connectivity"
+        unique_id: zigbee_connectivity_status
+        device_class: connectivity
+        state: >
+          {% set covers = states.cover
+            | selectattr('entity_id', 'search', 'lumi')
+            | selectattr('state', 'eq', 'unavailable')
+            | list %}
+          {{ covers | length == 0 }}
+
+  # Helper: Updates Available Binary Sensor
+  - binary_sensor:
+      - name: "Updates Available"
+        unique_id: system_updates_available
+        device_class: update
+        state: >
+          {{ states.update
+            | selectattr('state', 'eq', 'on')
+            | list | length > 0 }}
+
+# Manual control via script
+script:
+  set_led_green:
+    alias: "Set RGB LED Green"
+    sequence:
+      - service: rest_command.set_rgb_led
+        data:
+          color: "green"
+
+  set_led_amber:
+    alias: "Set RGB LED Amber"
+    sequence:
+      - service: rest_command.set_rgb_led
+        data:
+          color: "amber"
+
+  set_led_red:
+    alias: "Set RGB LED Red"
+    sequence:
+      - service: rest_command.set_rgb_led
+        data:
+          color: "red"
+
+  set_led_off:
+    alias: "Turn Off RGB LED"
+    sequence:
+      - service: rest_command.set_rgb_led
+        data:
+          color: "off"

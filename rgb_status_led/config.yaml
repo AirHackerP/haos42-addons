@@ -1,6 +1,6 @@
-name: "RGB Status LED"
-description: "WS281X LED status indicator showing system health - Green (OK), Amber (Updates), Red (Zigbee issues)"
-version: "1.1.3"
+name: "RGB LED Controller"
+description: "WS281X RGB LED controller service - Control LEDs via REST API from HA automations"
+version: "2.0.0"
 slug: "rgb_status_led"
 url: "https://github.com/AirHackerP/haos42-addons/tree/main/rgb_status_led"
 arch:
@@ -15,36 +15,20 @@ privileged:
   - SYS_RAWIO
 full_access: true
 
-# Home Assistant integration
-hassio_api: true
-hassio_role: admin
-homeassistant_api: true
-auth_api: true
+# Network port for HTTP API
+ports:
+  8099/tcp: 8099
 
 # Configuration options
 options:
   gpio_pin: 18
   led_count: 8
-  use_spi: false
   brightness: 50
-  refresh_interval: 30
-  check_zigbee: true
-  check_updates: true
-  zigbee_entity_patterns:
-    - "lumi"
-    - "zha"
-    - "cover.*acn002"
 
 schema:
   gpio_pin: int
   led_count: int
-  use_spi: bool
   brightness: int(1,100)
-  refresh_interval: int(10,300)
-  check_zigbee: bool
-  check_updates: bool
-  zigbee_entity_patterns:
-    - str
 
 # Map devices for GPIO access
 map:
@@ -55,6 +39,3 @@ devices:
   - /dev/gpiomem
   - /dev/spidev0.0
   - /dev/spidev0.1
-
-# Build locally - no pre-built image
-# image: "ghcr.io/airhackerp/haos42-addons/{arch}-rgb-status-led"

@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 """
-RGB Status LED - Main Entry Point
+RGB Status LED Add-on - Service Mode
 
-Monitors Home Assistant status and controls WS281X LEDs to indicate:
-- Green: All systems OK
-- Amber: Updates available
-- Red: Zigbee device issues
+Exposes HTTP API for direct LED control from Home Assistant.
+All monitoring logic handled by HA automations.
 """
 
 import json
@@ -14,9 +12,11 @@ import signal
 import sys
 import time
 from pathlib import Path
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from urllib.parse import urlparse, parse_qs
+from typing import Dict, Any
 
 from led_controller import LEDController, StatusColor
-from ha_monitor import HAMonitor
 
 # Configure logging
 logging.basicConfig(
@@ -24,13 +24,14 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S"
 )
-_LOGGER = logging.getLogger("rgb_status_led")
+_LOGGER = logging.getLogger("rgb_led_service")
 
-# Global for cleanup
+# Global LED controller
 led_controller = None
+shutdown_requested = False
 
 
-def load_config() -> dict:
+def load_config() -> Dict[str, Any]:
     """Load add-on configuration from options.json."""
     config_path = Path("/data/options.json")
 
@@ -43,116 +44,150 @@ def load_config() -> dict:
     return {
         "gpio_pin": 18,
         "led_count": 8,
-        "use_spi": False,
-        "brightness": 50,
-        "refresh_interval": 30,
-        "check_zigbee": True,
-        "check_updates": True,
-        "zigbee_entity_patterns": ["lumi", "zha", "cover.*acn002"]
+        "brightness": 50
     }
 
 
 def signal_handler(signum, frame):
     """Handle shutdown signals gracefully."""
+    global shutdown_requested
     _LOGGER.info(f"Received signal {signum}, shutting down...")
+    shutdown_requested = True
+
     if led_controller:
-        led_controller.cleanup()
+        led_controller.clear()
+
     sys.exit(0)
+
+
+class LEDServiceHandler(BaseHTTPRequestHandler):
+    """HTTP request handler for LED control."""
+
+    COLOR_MAP = {
+        "green": StatusColor.OK,
+        "amber": StatusColor.WARNING,
+        "yellow": StatusColor.WARNING,
+        "red": StatusColor.ERROR,
+        "blue": StatusColor.STARTING,
+        "white": StatusColor.WHITE,
+        "off": StatusColor.OFF
+    }
+
+    def do_GET(self):
+        """Handle GET requests."""
+        global led_controller
+
+        parsed = urlparse(self.path)
+
+        # Health check endpoint
+        if parsed.path == "/health":
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "status": "ok",
+                "initialized": led_controller is not None and led_controller._initialized
+            }).encode())
+            return
+
+        # Set color endpoint: /set_color?color=green
+        if parsed.path == "/set_color":
+            params = parse_qs(parsed.query)
+            color_name = params.get('color', [''])[0].lower()
+
+            if not color_name:
+                self.send_error(400, "Missing 'color' parameter")
+                return
+
+            if color_name not in self.COLOR_MAP:
+                self.send_error(400, f"Invalid color. Valid colors: {', '.join(self.COLOR_MAP.keys())}")
+                return
+
+            color = self.COLOR_MAP[color_name]
+            _LOGGER.info(f"Setting LED color to: {color_name}")
+
+            if led_controller:
+                led_controller.set_color(color)
+
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "status": "ok",
+                "color": color_name
+            }).encode())
+            return
+
+        # Unknown endpoint
+        self.send_error(404, "Endpoint not found. Available: /health, /set_color?color=green")
+
+    def log_message(self, format, *args):
+        """Custom logging to use our logger."""
+        _LOGGER.debug(f"{self.address_string()} - {format % args}")
 
 
 def main():
     """Main entry point."""
     global led_controller
 
-    # Register signal handlers
+    # Set up signal handlers
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
 
     _LOGGER.info("=" * 50)
-    _LOGGER.info("RGB Status LED Add-on Starting")
+    _LOGGER.info("RGB LED Service Starting")
     _LOGGER.info("=" * 50)
 
     # Load configuration
     config = load_config()
-    _LOGGER.info(f"Configuration loaded:")
+    _LOGGER.info(f"Configuration:")
     _LOGGER.info(f"  GPIO Pin: {config['gpio_pin']}")
     _LOGGER.info(f"  LED Count: {config['led_count']}")
-    _LOGGER.info(f"  Use SPI: {config.get('use_spi', True)}")
     _LOGGER.info(f"  Brightness: {config['brightness']}%")
-    _LOGGER.info(f"  Refresh Interval: {config['refresh_interval']}s")
-    _LOGGER.info(f"  Check Zigbee: {config['check_zigbee']}")
-    _LOGGER.info(f"  Check Updates: {config['check_updates']}")
 
     # Initialize LED controller
     led_controller = LEDController(
         gpio_pin=config["gpio_pin"],
         led_count=config["led_count"],
         brightness=config["brightness"],
-        use_spi=config.get("use_spi", True)
+        use_spi=False
     )
 
     if not led_controller.initialize():
         _LOGGER.error("Failed to initialize LED controller")
-        # Continue anyway - might be running in simulation mode
+        # Continue anyway for simulation mode
 
-    # Show startup color
+    # Set startup indicator (blue)
     _LOGGER.info("Setting startup indicator (blue)")
-    led_controller.set_status("starting")
+    led_controller.set_color(StatusColor.STARTING)
 
-    # Initialize HA monitor
-    monitor = HAMonitor(
-        check_zigbee=config["check_zigbee"],
-        check_updates=config["check_updates"],
-        zigbee_patterns=config.get("zigbee_entity_patterns", [])
-    )
+    # Start HTTP server
+    port = 8099
+    server = HTTPServer(('0.0.0.0', port), LEDServiceHandler)
+    _LOGGER.info(f"HTTP service listening on port {port}")
+    _LOGGER.info("Available endpoints:")
+    _LOGGER.info("  GET /health - Health check")
+    _LOGGER.info("  GET /set_color?color=green - Set LED color")
+    _LOGGER.info("  Valid colors: green, amber, red, blue, white, off")
 
-    # Wait for HA to be ready
-    _LOGGER.info("Waiting for Home Assistant to be ready...")
-    time.sleep(10)
+    # Show service is ready (green)
+    time.sleep(2)
+    led_controller.set_color(StatusColor.OK)
+    _LOGGER.info("Service ready - LED set to green")
 
-    # Main monitoring loop
-    _LOGGER.info("Starting status monitoring loop")
-    refresh_interval = config["refresh_interval"]
-    last_status = None
-
-    while True:
-        try:
-            # Get current status
-            status = monitor.get_status()
-            priority = monitor.get_status_priority()
-
-            # Log status changes
-            if priority != last_status:
-                _LOGGER.info(f"Status changed: {last_status} -> {priority}")
-
-                if status.zigbee_issues:
-                    _LOGGER.warning(
-                        f"Zigbee issues detected: {status.unavailable_devices}"
-                    )
-                if status.updates_available:
-                    _LOGGER.info(
-                        f"Updates available: {status.pending_updates}"
-                    )
-
-                last_status = priority
-
-            # Update LED color
-            led_controller.set_status(priority)
-
-            # Log current state periodically
-            _LOGGER.debug(
-                f"Status: {priority} | "
-                f"Zigbee OK: {not status.zigbee_issues} | "
-                f"Updates: {len(status.pending_updates)}"
-            )
-
-        except Exception as e:
-            _LOGGER.error(f"Error in monitoring loop: {e}")
-            # Set error color on exception
-            led_controller.set_color(StatusColor.RED)
-
-        # Wait for next check
-        time.sleep(refresh_interval)
+    # Serve requests
+    try:
+        while not shutdown_requested:
+            server.handle_request()
+    except KeyboardInterrupt:
+        _LOGGER.info("Interrupted by user")
+    except Exception as e:
+        _LOGGER.error(f"Unexpected error: {e}")
+    finally:
+        server.server_close()
+        if led_controller:
+            led_controller.clear()
+        _LOGGER.info("Shutdown complete")
 
 
 if __name__ == "__main__":
