@@ -20,6 +20,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
+# Cache bust for patch file update (ensures fresh copy)
+RUN echo "Build timestamp: 2026-01-23-0711"
+
 # Copy patch file first
 COPY force_pi4.patch /tmp/
 
