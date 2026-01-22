@@ -20,6 +20,7 @@ RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Clone rpi-ws281x-python with submodules (includes latest native library)
+# Cache bust: 2026-01-22-2010
 RUN git clone --depth 1 --recurse-submodules https://github.com/rpi-ws281x/rpi-ws281x-python.git /tmp/rpi-ws281x-python
 
 # Build and install from source (setup.py is in library/ subdirectory)
