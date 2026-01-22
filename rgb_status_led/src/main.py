@@ -64,11 +64,11 @@ class LEDServiceHandler(BaseHTTPRequestHandler):
     """HTTP request handler for LED control."""
 
     COLOR_MAP = {
-        "green": StatusColor.OK,
-        "amber": StatusColor.WARNING,
-        "yellow": StatusColor.WARNING,
-        "red": StatusColor.ERROR,
-        "blue": StatusColor.STARTING,
+        "green": StatusColor.GREEN,
+        "amber": StatusColor.AMBER,
+        "yellow": StatusColor.AMBER,
+        "red": StatusColor.RED,
+        "blue": StatusColor.BLUE,
         "white": StatusColor.WHITE,
         "off": StatusColor.OFF
     }
@@ -159,7 +159,7 @@ def main():
 
     # Set startup indicator (blue)
     _LOGGER.info("Setting startup indicator (blue)")
-    led_controller.set_color(StatusColor.STARTING)
+    led_controller.set_color(StatusColor.BLUE)
 
     # Start HTTP server
     port = 8099
@@ -172,7 +172,7 @@ def main():
 
     # Show service is ready (green)
     time.sleep(2)
-    led_controller.set_color(StatusColor.OK)
+    led_controller.set_color(StatusColor.GREEN)
     _LOGGER.info("Service ready - LED set to green")
 
     # Serve requests
