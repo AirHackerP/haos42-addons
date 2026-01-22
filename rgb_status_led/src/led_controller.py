@@ -17,11 +17,11 @@ except ImportError:
 
 _LOGGER = logging.getLogger(__name__)
 
-# LED strip configuration for SPI method
-LED_FREQ_HZ = 800000      # LED signal frequency in hertz
+# LED strip configuration - matches working GeeekPi example
+LED_FREQ_HZ = 800000      # LED signal frequency in hertz (WS2811_TARGET_FREQ)
 LED_DMA = 10              # DMA channel to use for generating signal
 LED_INVERT = False        # True to invert the signal
-LED_CHANNEL = 0           # SPI channel (0 for GPIO10 MOSI)
+LED_CHANNEL = 0           # PWM channel (0 for GPIO18, 1 for GPIO13)
 
 # Status colors (RGB format - converted to GRB internally)
 class StatusColor:
@@ -76,7 +76,7 @@ class LEDController:
         try:
             if self.use_spi:
                 # SPI method - more reliable on Pi 4, uses GPIO10 (SPI0 MOSI)
-                # strip_type determines color order (GRB for most WS2812B)
+                # strip_type: GBR matches GeeekPi working example
                 _LOGGER.info(f"Initializing LED strip using SPI method on GPIO{self.gpio_pin}")
                 self.strip = PixelStrip(
                     self.led_count,
@@ -86,7 +86,7 @@ class LEDController:
                     LED_INVERT,
                     self.brightness,
                     LED_CHANNEL,
-                    strip_type=ws.WS2811_STRIP_GRB
+                    strip_type=ws.WS2811_STRIP_GBR
                 )
             else:
                 # PWM method - uses GPIO18/12/13
@@ -99,7 +99,7 @@ class LEDController:
                     LED_INVERT,
                     self.brightness,
                     LED_CHANNEL,
-                    strip_type=ws.WS2811_STRIP_GRB
+                    strip_type=ws.WS2811_STRIP_GBR
                 )
 
             self.strip.begin()
