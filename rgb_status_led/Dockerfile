@@ -23,7 +23,8 @@ RUN git clone --depth 1 --branch v4.3.3 --recurse-submodules \
     https://github.com/rpi-ws281x/rpi-ws281x-python.git /tmp/rpi-ws281x-python
 
 # Build and install from stable source (NO PATCHING - try as-is first)
-WORKDIR /tmp/rpi-ws281x-python
+# setup.py is in library/ subdirectory
+WORKDIR /tmp/rpi-ws281x-python/library
 RUN pip3 install --no-cache-dir .
 
 # Install other dependencies
