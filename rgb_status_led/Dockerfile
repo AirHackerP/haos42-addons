@@ -1,39 +1,20 @@
 ARG BUILD_FROM
 FROM ${BUILD_FROM}
 
-# Install system dependencies for building rpi_ws281x from source
+# Install minimal runtime dependencies (no build tools needed)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
-    python3-dev \
     python3-venv \
-    gcc \
-    g++ \
-    make \
-    git \
-    scons \
-    cmake \
     && rm -rf /var/lib/apt/lists/*
 
 # Create virtual environment
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Clone rpi-ws281x-python with submodules (includes latest native library)
-RUN git clone --depth 1 --recurse-submodules https://github.com/rpi-ws281x/rpi-ws281x-python.git /tmp/rpi-ws281x-python
-
-# Build and install from source (setup.py is in library/ subdirectory)
-WORKDIR /tmp/rpi-ws281x-python/library
-RUN git submodule update --init --recursive
-
-# Copy and run patch script to force Pi 4 detection (Docker container workaround)
-COPY patch_rpihw.py lib/
-RUN cd lib && python3 patch_rpihw.py && cd ..
-
-RUN pip3 install --no-cache-dir --no-binary :all: .
-
-# Install other dependencies
-RUN pip3 install --no-cache-dir requests
+# Install stable release from PyPI (prebuilt wheel - no compilation)
+# v4.3.3 released March 2024 - mature, stable, full Pi 4 support
+RUN pip3 install --no-cache-dir rpi_ws281x==4.3.3 requests
 
 # Copy application files
 WORKDIR /app
